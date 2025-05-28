@@ -1,7 +1,6 @@
 from kafka import KafkaConsumer
 
-
-def stream_video_from_kafka():
+def kafka_video_generator():
     consumer = KafkaConsumer(
         'video-stream',
         bootstrap_servers='localhost:9092',
@@ -9,11 +8,8 @@ def stream_video_from_kafka():
         enable_auto_commit=True,
         group_id='video-stream-consumer'
     )
-    print("Streaming from Kafka...")
     try:
-        for msg in consumer:
-            # print(f"Sending chunk to client ({len(msg.value)} bytes)")
-            yield msg.value
+        for message in consumer:
+            yield message.value
     finally:
         consumer.close()
-
