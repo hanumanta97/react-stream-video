@@ -44,7 +44,6 @@ def list_videos():
 from fastapi import Request, HTTPException
 from fastapi.responses import StreamingResponse, Response
 from starlette.status import HTTP_206_PARTIAL_CONTENT
-
 @router.get("/video/{video_id}")
 def get_video(video_id: int, request: Request):
     db = SessionLocal()
@@ -62,25 +61,30 @@ def get_video(video_id: int, request: Request):
         yield video_data[start:end]
 
     if content_range:
-        # Handle range requests
-        units, range_spec = content_range.split('=')
-        start_str, end_str = range_spec.split('-')
-        start = int(start_str)
-        end = int(end_str) if end_str else min(start + 1024 * 1024, file_size - 1)
-        end = min(end, file_size - 1)
+        try:
+            units, range_spec = content_range.strip().split('=')
+            start_str, end_str = range_spec.split('-')
+            start = int(start_str)
+            end = int(end_str) if end_str else file_size - 1
+            start, end = max(0, start), min(end, file_size - 1)
 
-        headers = {
-            'Content-Range': f'bytes {start}-{end}/{file_size}',
-            'Accept-Ranges': 'bytes',
-            'Content-Length': str(end - start + 1),
-            'Content-Type': video.content_type,
-        }
-        return StreamingResponse(iter_file(start, end + 1), headers=headers, status_code=HTTP_206_PARTIAL_CONTENT)
+            headers = {
+                'Content-Range': f'bytes {start}-{end}/{file_size}',
+                'Accept-Ranges': 'bytes',
+                'Content-Length': str(end - start + 1),
+                'Content-Type': video.content_type,
+            }
+            return StreamingResponse(iter_file(start, end + 1), headers=headers, status_code=HTTP_206_PARTIAL_CONTENT)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid Range header")
 
-    # No range header, return full content
     headers = {
         'Content-Length': str(file_size),
         'Accept-Ranges': 'bytes',
         'Content-Type': video.content_type,
     }
     return StreamingResponse(iter_file(0, file_size), headers=headers)
+
+@router.get("/video/stream/kafka")
+def stream_from_kafka():
+    return StreamingResponse(kafka_video_generator(), media_type="video/mp4")
