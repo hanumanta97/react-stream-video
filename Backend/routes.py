@@ -73,8 +73,10 @@ def get_video(video_id: int, request: Request):
                 'Accept-Ranges': 'bytes',
                 'Content-Length': str(end - start + 1),
                 'Content-Type': video.content_type,
+                "Cache-Control": "public, max-age=31536000",
             }
             return StreamingResponse(iter_file(start, end + 1), headers=headers, status_code=HTTP_206_PARTIAL_CONTENT)
+         
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid Range header")
 
